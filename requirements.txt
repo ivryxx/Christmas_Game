@@ -1,0 +1,6 @@
+opencv-python>=4.5.5
+mediapipe>=0.8.10
+numpy>=1.21.0
+# Pygame은 렌더링을 위해 선택적으로 사용.
+# OpenCV만 사용한다면 제외하고, GUI를 위해 Pygame을 사용한다면 포함
+pygame>=2.0.1
