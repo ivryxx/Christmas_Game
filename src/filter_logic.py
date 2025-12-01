@@ -50,4 +50,36 @@ def draw_filter(frame, landmarks):
     # TODO: 이미지 합성 로직 구현
     pass
 
-# -----------------
+
+# Face Mesh 객체 생성 (기존 C5 내용)
+face_mesh = mp_face_mesh.FaceMesh(
+    max_num_faces=1,
+    refine_landmarks=True,
+    min_detection_confidence=0.7,
+    min_tracking_confidence=0.7)
+    
+# ... (기존 initialize_filter_system 및 process_frame 함수는 그대로 유지) ...
+
+def draw_landmarks_and_mesh(frame, results, mp_drawing):
+    """
+    MediaPipe의 결과를 사용하여 랜드마크와 메쉬를 프레임에 시각화합니다.
+    """
+    if results.multi_face_landmarks:
+        for face_landmarks in results.multi_face_landmarks:
+            # 1. 랜드마크를 연결하는 메쉬 그리기 (복잡도 때문에 주석 처리 가능)
+            mp_drawing.draw_landmarks(
+                image=frame,
+                landmark_list=face_landmarks,
+                connections=mp_face_mesh.FACEMESH_TESSELATION, # 얼굴 외곽선 연결
+                landmark_drawing_spec=None,
+                connection_drawing_spec=mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=1, circle_radius=1))
+            
+            # 2. 얼굴 윤곽선 (Contour) 그리기
+            # mp_drawing.draw_landmarks(
+            #     image=frame,
+            #     landmark_list=face_landmarks,
+            #     connections=mp_face_mesh.FACEMESH_CONTOURS, # 눈, 입, 코 등 윤곽선
+            #     landmark_drawing_spec=None,
+            #     connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=1))
+
+    return frame
