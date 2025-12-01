@@ -1,32 +1,43 @@
 import cv2
+# filter_logic 모듈 import
+import src.filter_logic as fl
 
 def main():
     # 0번 웹캠 장치 열기
     cap = cv2.VideoCapture(0)
     
-    # 웹캠이 성공적으로 열렸는지 확인
     if not cap.isOpened():
         print("Error: Could not open webcam.")
         return
 
-    print("Webcam successfully opened. Press 'q' to exit.")
+    # C5에서 작성된 MediaPipe Face Mesh 객체와 그리기 유틸리티를 초기화
+    face_mesh, mp_drawing = fl.initialize_filter_system()
+    
+    print("Christmas Game Filter started. Press 'q' to exit.")
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             print("Ignoring empty camera frame.")
-            break
+            continue
+        
+        # 좌우 반전: 셀카 모드처럼 보이게 하여 사용자 경험 개선
+        frame = cv2.flip(frame, 1)
 
-        # 창 크기 조정 없이 원본 프레임 표시
-        cv2.imshow('Christmas Game Filter (C4)', frame)
+        # C5의 filter_logic 함수를 사용하여 프레임 처리
+        # (이 단계에서는 랜드마크 시각화는 아직 filter_logic 내에서 하지 않음)
+        processed_frame, results = fl.process_frame(frame, face_mesh)
+        
+        # 처리된 프레임 표시
+        cv2.imshow('Christmas Game Filter (C6)', processed_frame)
 
-        # 'q' 키를 누르면 루프 종료
         if cv2.waitKey(5) & 0xFF == ord('q'):
             break
 
-    # 자원 해제
     cap.release()
     cv2.destroyAllWindows()
+    # MediaPipe 객체 해제 (선택 사항이나 권장됨)
+    face_mesh.close()
 
 if __name__ == "__main__":
     main()
