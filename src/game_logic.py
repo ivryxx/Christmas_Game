@@ -16,7 +16,7 @@ class GameObject:
         """객체를 아래로 이동시키고 화면 밖으로 나가면 비활성화합니다."""
         self.y += self.speed
         if self.y > height + self.size:
-            self.active = False
+            # 객체가 화면 밖으로 나갔으나, 아직 수집되지 않은 경우
             return True 
         return False
 
@@ -40,7 +40,13 @@ class ChristmasGame:
         self.max_lives = 3
         self.lives = self.max_lives
         self.game_over = False
-        self.paused = False # C34
+        self.paused = False 
+
+        # 📌 C40: 피드백 메시지 변수 추가
+        self.feedback_text = ""
+        self.feedback_color = (0, 0, 0) # BGR
+        self.max_feedback_time = 30 # 30프레임 (약 0.5초) 동안 표시
+        self.feedback_timer = 0
 
         obj_size = GameObject(0, 0, 0, '').size 
         
@@ -68,6 +74,7 @@ class ChristmasGame:
         self.lives = self.max_lives
         self.game_over = False
         self.paused = False
+        self.feedback_timer = 0 # C40
 
     def _check_level_up(self):
         """C30: 레벨을 올리고 난이도를 조절합니다."""
@@ -82,7 +89,7 @@ class ChristmasGame:
 
 
     def check_collection(self, is_mouth_open, mouth_x, mouth_y):
-        """C32: 입 벌림 상태와 입의 위치를 기준으로 객체와의 충돌을 확인하고 점수를 업데이트합니다."""
+        """C32, C40: 입 벌림 상태와 입의 위치를 기준으로 객체와의 충돌을 확인하고 점수를 업데이트합니다."""
         if self.game_over:
             return
 
@@ -92,36 +99,65 @@ class ChristmasGame:
                 distance_y = abs(mouth_y - obj.y)
                 distance_x = abs(mouth_x - obj.x)
                 
+                # 충돌 판정
                 if distance_y < obj.size and distance_x < obj.size: 
                     obj.active = False
                     
                     if obj.type == 'present':
-                        if is_mouth_open: # 입 벌려야 수집 성공
+                        if is_mouth_open: # 수집 성공
                             self.score += 10
+                            # 📌 C40: 성공 피드백 설정
+                            self.feedback_text = "SUCCESS! (+10)"
+                            self.feedback_color = (0, 255, 0) # Green (BGR)
+                            self.feedback_timer = self.max_feedback_time
                         else: # 놓침
                             self.lives -= 1
+                            # 📌 C40: 놓침 피드백 설정
+                            self.feedback_text = "OOPS! (Missed Present)"
+                            self.feedback_color = (0, 165, 255) # Orange (BGR)
+                            self.feedback_timer = self.max_feedback_time
                             if self.lives <= 0: self.game_over = True
                                 
                     elif obj.type == 'coal': # 석탄 충돌
                         self.lives -= 1
+                        # 📌 C40: 석탄 충돌 피드백 설정
+                        self.feedback_text = "DANGER! (-1 Life)"
+                        self.feedback_color = (0, 0, 255) # Red (BGR)
+                        self.feedback_timer = self.max_feedback_time
                         if self.lives <= 0: self.game_over = True
                     break 
 
     def update(self):
         """게임 로직 업데이트 (객체 이동, 제거, 레벨 체크)"""
-        if self.game_over or self.paused: # C34: paused 상태일 때 업데이트 중단
+        if self.game_over or self.paused: 
             return
             
         self._check_level_up() 
         
-        # 객체 이동 및 화면 밖 객체 체크
-        for obj in self.objects:
-            if obj.move(self.height) and obj.active:
-                if obj.type == 'present': # 선물 놓침 처리
-                    self.lives -= 1
-                    if self.lives <= 0: self.game_over = True
+        # 📌 C40: 피드백 타이머 감소
+        if self.feedback_timer > 0:
+            self.feedback_timer -= 1
         
-        self.objects = [obj for obj in self.objects if obj.active]
+        # 객체 이동 및 화면 밖 객체 체크
+        objects_to_keep = []
+        for obj in self.objects:
+            is_off_screen = obj.move(self.height)
+            
+            if is_off_screen and obj.active: 
+                if obj.type == 'present': # 선물 놓침 처리 (화면 밖으로 나갔을 때)
+                    self.lives -= 1
+                    # 📌 C40: 놓침 피드백 설정
+                    self.feedback_text = "OOPS! (Missed Present)"
+                    self.feedback_color = (0, 165, 255) # Orange
+                    self.feedback_timer = self.max_feedback_time
+                    if self.lives <= 0: self.game_over = True
+                
+                obj.active = False # 화면 밖으로 나간 객체는 비활성화
+            
+            if obj.active:
+                objects_to_keep.append(obj)
+                
+        self.objects = objects_to_keep
         
         self.spawn_timer += 1
         if self.spawn_timer >= self.spawn_rate: 
@@ -142,7 +178,7 @@ class ChristmasGame:
         self.objects.append(new_obj)
         
     def draw(self, frame):
-        """모든 게임 객체와 점수를 프레임에 그립니다."""
+        """모든 게임 객체와 점수, 피드백을 프레임에 그립니다."""
         for obj in self.objects:
             img = self.present_img if obj.type == 'present' else self.coal_img
             
@@ -184,7 +220,21 @@ class ChristmasGame:
             pause_text = "PAUSED (Press P to resume)"
             cv2.putText(frame, pause_text, (self.width // 2 - 200, self.height // 2), 
                         cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
-        
+
+        # 📌 C40: 실시간 피드백 메시지 출력
+        if self.feedback_timer > 0:
+            center_x = self.width // 2
+            center_y = self.height // 2 - 150 
+            
+            scale = 1.5
+            thickness = 3
+            
+            # 텍스트의 중심을 맞추기 위해 텍스트 크기 계산
+            (text_w, text_h), baseline = cv2.getTextSize(self.feedback_text, cv2.FONT_HERSHEY_DUPLEX, scale, thickness)
+            
+            cv2.putText(frame, self.feedback_text, (center_x - text_w // 2, center_y), 
+                        cv2.FONT_HERSHEY_DUPLEX, scale, self.feedback_color, thickness, cv2.LINE_AA)
+
         # C32: 게임 오버 화면 출력
         if self.game_over:
             overlay = frame.copy()
