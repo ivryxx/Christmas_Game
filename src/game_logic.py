@@ -28,12 +28,18 @@ class ChristmasGame:
         self.score = 0
         self.objects = []
         self.spawn_timer = 0
-        self.spawn_rate = 50 
+        self.base_spawn_rate = 50 # C30: 기본 스폰 속도
+        self.spawn_rate = self.base_spawn_rate 
         self.base_speed = 3
         
-        # 📌 C29: 이미지 로드 및 리사이즈를 __init__에서 처리 (문제 2 해결)
-        obj_size = GameObject(0, 0, 0, '').size # 객체 크기 참조
+        # C30: 레벨 관리 변수 추가
+        self.level = 1
+        self.score_to_next_level = 100 
+
+        # 이미지 로드를 위한 임시 객체 크기 참조
+        obj_size = GameObject(0, 0, 0, '').size 
         
+        # 이미지 로드 (C29)
         self.present_img = cv2.imread('assets/present.png', cv2.IMREAD_UNCHANGED)
         self.coal_img = cv2.imread('assets/coal.png', cv2.IMREAD_UNCHANGED)
         
@@ -47,6 +53,21 @@ class ChristmasGame:
         self.coal_img = cv2.resize(self.coal_img, (obj_size, obj_size))
 
 
+    def _check_level_up(self):
+        """C30: 현재 점수를 확인하여 레벨을 올리고 난이도를 조절합니다."""
+        if self.score >= self.score_to_next_level:
+            self.level += 1
+            self.score_to_next_level += 100 + (self.level * 50) # 다음 레벨업 목표 점수 증가
+            
+            # 하강 속도 증가
+            self.base_speed += 0.5 
+            
+            # 스폰 속도 증가 (숫자가 작을수록 빨라짐)
+            if self.base_spawn_rate > 15: # 최소 스폰 간격 제한
+                self.base_spawn_rate -= 5
+            self.spawn_rate = self.base_spawn_rate
+
+
     def check_collection(self, is_mouth_open, mouth_x, mouth_y):
         """입 벌림 상태와 입의 위치를 기준으로 객체와의 충돌을 확인하고 점수를 업데이트합니다."""
         if not is_mouth_open:
@@ -55,17 +76,19 @@ class ChristmasGame:
         for obj in self.objects:
             if obj.type == 'present' and obj.active:
                 
-                # 충돌 판정 (객체 중앙과 플레이어 캐릭터 중앙의 거리)
                 distance_y = abs(mouth_y - obj.y)
                 distance_x = abs(mouth_x - obj.x)
                 
+                # 충돌 조건: 객체 크기 이내로 가까울 때
                 if distance_y < obj.size and distance_x < obj.size: 
                     self.score += 10
                     obj.active = False
                     break 
 
     def update(self):
-        """게임 로직 업데이트 (객체 이동 및 제거)"""
+        """게임 로직 업데이트 (객체 이동, 제거, 레벨 체크)"""
+        self._check_level_up() # C30: 레벨업 체크
+        
         # 비활성화된 객체 제거
         self.objects = [obj for obj in self.objects if obj.active]
         
@@ -73,7 +96,7 @@ class ChristmasGame:
             obj.move(self.height)
             
         self.spawn_timer += 1
-        if self.spawn_timer >= self.spawn_rate:
+        if self.spawn_timer >= self.spawn_rate: # C30: 현재 spawn_rate 사용
             self.spawn_object()
             self.spawn_timer = 0
         
@@ -84,7 +107,7 @@ class ChristmasGame:
         
         x = random.randint(50, self.width - 50)
         y = -50 
-        speed = self.base_speed + random.uniform(-0.5, 1.0)
+        speed = self.base_speed + random.uniform(-0.5, 1.0) # C30: 현재 base_speed 사용
         obj_type = 'present' if random.random() < 0.7 else 'coal'
         
         new_obj = GameObject(x, y, speed, obj_type)
@@ -92,7 +115,6 @@ class ChristmasGame:
         
     def draw(self, frame):
         """모든 게임 객체와 점수를 프레임에 그립니다."""
-        # 📌 C29: draw 함수가 이미지 오버레이 로직을 실행하도록 수정 (문제 1, 3 해결)
         for obj in self.objects:
             img = self.present_img if obj.type == 'present' else self.coal_img
             
@@ -122,5 +144,11 @@ class ChristmasGame:
                     # 3채널 이미지일 경우 (오류 발생 시 대비)
                     roi[:] = img_to_overlay
             
-        cv2.putText(frame, f"SCORE: {self.score}", (self.width - 150, 60), 
+        # C30: 점수 및 레벨 정보 표시 업데이트
+        score_text = f"SCORE: {self.score}"
+        level_text = f"LEVEL: {self.level}"
+        
+        cv2.putText(frame, score_text, (self.width - 150, 60), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(frame, level_text, (self.width - 150, 90), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
