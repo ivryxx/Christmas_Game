@@ -2,6 +2,11 @@ import mediapipe as mp
 import cv2
 import numpy as np
 
+
+MOUTH_UPPER = 10 
+MOUTH_LOWER = 152 
+
+
 # MediaPipe 객체 초기화
 # mp_face_mesh: 468개 얼굴 랜드마크 검출
 # mp_drawing: 랜드마크를 화면에 그릴 때 사용할 유틸리티
@@ -39,22 +44,16 @@ def process_frame(frame, face_mesh_instance):
 def calculate_mouth_dist(landmarks, frame_width, frame_height): 
     """
     입 벌림의 수직 거리(픽셀 단위)를 계산합니다.
-    
-    :param landmarks: MediaPipe의 얼굴 랜드마크 결과
-    :param frame_width, frame_height: 현재 프레임의 크기
-    :return: 입을 벌린 수직 거리 (픽셀)
     """
     if not landmarks:
         return 0
 
-    # 랜드마크 좌표 추출 (정규화된 [0.0, 1.0] 값을 픽셀 값으로 변환)
-    upper_point = landmarks.landmark[fl.MOUTH_UPPER] # fl.을 제거하거나 인덱스를 직접 사용해야 합니다.
-    lower_point = landmarks.landmark[fl.MOUTH_LOWER] # (filter_logic 내부이므로 fl. 없이 MOUTH_UPPER 사용)
+    # 📌 C22 수정: global 키워드를 사용하여 모듈 최상단 변수를 참조하도록 강제합니다.
+    global MOUTH_UPPER, MOUTH_LOWER
     
-    # 수정: filter_logic 내부이므로 MOUTH_UPPER 등을 직접 사용해야 합니다.
-    # C9에서 정의한 인덱스를 사용
-    from . import MOUTH_UPPER, MOUTH_LOWER # MOUTH_UPPER와 MOUTH_LOWER를 가져와야 합니다.
-    upper_point = landmarks.landmark[MOUTH_UPPER]
+    # 랜드마크 좌표 추출 (정규화된 [0.0, 1.0] 값을 픽셀 값으로 변환)
+    # 이제 'global' 키워드 덕분에 'MOUTH_UPPER'를 직접 사용할 수 있습니다.
+    upper_point = landmarks.landmark[MOUTH_UPPER] 
     lower_point = landmarks.landmark[MOUTH_LOWER]
     
     # 픽셀 좌표
@@ -65,7 +64,6 @@ def calculate_mouth_dist(landmarks, frame_width, frame_height):
     distance = np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
     
     return distance
-
 
 
 
