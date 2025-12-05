@@ -10,6 +10,10 @@ mp_face_mesh = mp.solutions.face_mesh
 MOUTH_UPPER = 10 
 MOUTH_LOWER = 152 
 
+# C39: 정규화를 위한 눈 랜드마크
+LEFT_EYE_INNER = 263 
+RIGHT_EYE_INNER = 33 
+
 # 머리 자세 추정(Head Pose Estimation)을 위한 랜드마크 인덱스 정의
 HEAD_POSE_LANDMARKS = [
     33,   # 왼쪽 눈 (Outer Corner)
@@ -19,7 +23,6 @@ HEAD_POSE_LANDMARKS = [
     291,  # 오른쪽 입가 (Right Mouth Corner)
     199   # 턱 끝 (Chin Center)
 ]
-
 
 # PnP 알고리즘을 위한 3D 모델
 MODEL_3D_POINTS = np.array([
@@ -50,7 +53,7 @@ def process_frame(frame, face_mesh):
     return processed_frame, results
 
 def draw_landmarks_and_mesh(frame, results, mp_drawing):
-    """얼굴 메쉬와 랜드마크를 그립니다."""
+    """얼굴 메쉬와 랜드마크를 그립니다. (현재 main.py에서 주석 처리됨)"""
     if results.multi_face_landmarks:
         for face_landmarks in results.multi_face_landmarks:
             mp_drawing.draw_landmarks(
@@ -62,33 +65,41 @@ def draw_landmarks_and_mesh(frame, results, mp_drawing):
     return frame
 
 def calculate_mouth_dist(landmarks, frame_width, frame_height): 
-    """입 벌림의 수직 거리(픽셀 단위)를 계산합니다."""
+    """
+    C39: 입 벌림의 수직 거리를 눈 사이 거리로 정규화한 비율을 반환합니다.
+    (frame_width, frame_height는 픽셀 변환을 위해 전달되나, 정규화된 좌표를 사용하므로 실제로는 사용되지 않음)
+    """
     if not landmarks:
         return 0
 
-    # global 키워드를 사용하여 모듈 최상단 변수를 참조
-    global MOUTH_UPPER, MOUTH_LOWER 
+    global MOUTH_UPPER, MOUTH_LOWER, LEFT_EYE_INNER, RIGHT_EYE_INNER
     
-    # 랜드마크 좌표 추출
+    # 1. 눈 사이 거리 (기준 거리) 계산 (정규화된 좌표 사용)
+    left_eye_point = landmarks.landmark[LEFT_EYE_INNER]
+    right_eye_point = landmarks.landmark[RIGHT_EYE_INNER]
+    
+    eye_dist_norm = np.linalg.norm(np.array([left_eye_point.x, left_eye_point.y]) - 
+                                   np.array([right_eye_point.x, right_eye_point.y]))
+
+    # 2. 입의 수직 거리 (비교 거리) 계산 (정규화된 좌표 사용)
     upper_point = landmarks.landmark[MOUTH_UPPER] 
     lower_point = landmarks.landmark[MOUTH_LOWER]
     
-    # 픽셀 좌표
-    x1, y1 = int(upper_point.x * frame_width), int(upper_point.y * frame_height)
-    x2, y2 = int(lower_point.x * frame_width), int(lower_point.y * frame_height)
-
-    # 유클리디안 거리 계산
-    distance = np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
+    mouth_dist_norm = np.linalg.norm(np.array([upper_point.x, upper_point.y]) - 
+                                     np.array([lower_point.x, lower_point.y]))
     
-    return distance
+    # 3. 비율 반환: (입 수직 거리 / 눈 수평 거리)
+    epsilon = 1e-6 
+    mouth_ratio = mouth_dist_norm / (eye_dist_norm + epsilon)
+    
+    return mouth_ratio
 
 def get_head_pose(landmarks, frame_width, frame_height):
-    """
-    얼굴 랜드마크를 사용하여 머리의 회전 벡터를 추정합니다 (PnP).
-    """
+    """얼굴 랜드마크를 사용하여 머리의 회전 벡터를 추정합니다 (PnP)."""
     if not landmarks:
         return None, None, None, None
 
+    # 이미지 좌표 (2D) 추출
     image_points = np.zeros((6, 2), dtype=np.float32)
     for i, idx in enumerate(HEAD_POSE_LANDMARKS):
         point = landmarks.landmark[idx]
@@ -96,6 +107,7 @@ def get_head_pose(landmarks, frame_width, frame_height):
         y = point.y * frame_height
         image_points[i] = [x, y]
 
+    # 카메라 매개변수 설정
     focal_length = frame_width
     center = (frame_width / 2, frame_height / 2)
     
@@ -107,14 +119,16 @@ def get_head_pose(landmarks, frame_width, frame_height):
 
     dist_coeffs = np.zeros((4, 1), dtype=np.float32)
 
+    # PnP 알고리즘으로 회전 및 이동 벡터 계산
     (success, rotation_vector, translation_vector) = cv2.solvePnP(
         MODEL_3D_POINTS, image_points, camera_matrix, dist_coeffs, 
         flags=cv2.SOLVEPNP_ITERATIVE
     )
 
     return rotation_vector, image_points, camera_matrix, dist_coeffs
+
 def draw_head_pose_axis(frame, rvec, image_points, camera_matrix, dist_coeffs):
-    """머리 자세(Head Pose)의 3D 축을 프레임에 시각화합니다."""
+    """머리 자세(Head Pose)의 3D 축을 프레임에 시각화합니다. (현재 main.py에서 주석 처리됨)"""
     if rvec is None:
         return frame
 

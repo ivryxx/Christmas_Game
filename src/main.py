@@ -8,8 +8,8 @@ import os
 os.environ['GLOG_minloglevel'] = '2'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# C36: 입 벌림 임계값 정의 (610~670 범위에 맞춰 650으로 설정)
-MOUTH_OPEN_THRESHOLD = 650 
+# C39: 입 벌림 임계값 정의 (정규화된 비율 기준)
+MOUTH_OPEN_THRESHOLD = 0.18 # 입 거리가 눈 사이 거리의 18%를 초과할 때 수집
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -41,7 +41,7 @@ def main():
 
         processed_frame, results = fl.process_frame(frame, face_mesh)
         
-        mouth_dist = 0
+        mouth_ratio = 0 # 픽셀이 아닌 비율을 사용
         mouth_y = 0
         is_mouth_open = False
         visualized_frame = processed_frame 
@@ -50,13 +50,14 @@ def main():
         if results.multi_face_landmarks:
             landmarks = results.multi_face_landmarks[0]
             
-            # 입 벌림 거리 계산
-            mouth_dist = fl.calculate_mouth_dist(landmarks, frame_width, frame_height)
-            # fl.MOUTH_UPPER 상수 참조
+            # C39: 입 벌림 비율 계산 (정규화)
+            mouth_ratio = fl.calculate_mouth_dist(landmarks, frame_width, frame_height)
+            
+            # fl.MOUTH_UPPER 상수 참조 (Y 좌표는 여전히 픽셀 기반)
             mouth_y = landmarks.landmark[fl.MOUTH_UPPER].y * frame_height
             
-            # 임계값 초과 여부 판단
-            is_mouth_open = mouth_dist > MOUTH_OPEN_THRESHOLD
+            # C39: 비율 임계값과 비교
+            is_mouth_open = mouth_ratio > MOUTH_OPEN_THRESHOLD
             
             # Head Pose 추정
             rvec, image_points, camera_matrix, dist_coeffs = fl.get_head_pose(landmarks, frame_width, frame_height)
@@ -101,8 +102,8 @@ def main():
         cv2.putText(visualized_frame, status_text, (frame_width - 200, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2, cv2.LINE_AA)
         
-        # 입 벌림 거리 시각화 (디버깅용)
-        dist_text = f"Mouth Dist: {mouth_dist:.2f} px"
+        # C39: 입 벌림 비율 시각화 (디버깅용)
+        dist_text = f"Mouth Ratio: {mouth_ratio:.3f}"
         cv2.putText(visualized_frame, dist_text, (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
         
