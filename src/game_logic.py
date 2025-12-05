@@ -20,26 +20,6 @@ class GameObject:
             return True 
         return False
 
-   def draw(self, frame):
-        """모든 게임 객체와 점수를 프레임에 그립니다."""
-        for obj in self.objects:
-            # 📌 C28: 이미지 오버레이 로직 사용
-            img = self.present_img if obj.type == 'present' else self.coal_img
-            
-            x, y, w, h = int(obj.x - obj.size / 2), int(obj.y - obj.size / 2), obj.size, obj.size
-            
-            # 4채널 (Alpha) 이미지를 배경에 오버레이
-            # 1. 원본 이미지의 해당 영역 추출
-            roi = frame[y:y+h, x:x+w]
-            
-            # 2. 알파 채널 추출
-            alpha = img[:, :, 3] / 255.0
-            inv_alpha = 1.0 - alpha
-
-            # 3. 채널별로 이미지 오버레이 (알파 블렌딩)
-            for c in range(0, 3):
-                roi[:, :, c] = (roi[:, :, c] * inv_alpha) + (img[:, :, c] * alpha)
-
 # 게임 관리 클래스
 class ChristmasGame:
     def __init__(self, width, height):
@@ -50,6 +30,22 @@ class ChristmasGame:
         self.spawn_timer = 0
         self.spawn_rate = 50 
         self.base_speed = 3
+        
+        # 📌 C29: 이미지 로드 및 리사이즈를 __init__에서 처리 (문제 2 해결)
+        obj_size = GameObject(0, 0, 0, '').size # 객체 크기 참조
+        
+        self.present_img = cv2.imread('assets/present.png', cv2.IMREAD_UNCHANGED)
+        self.coal_img = cv2.imread('assets/coal.png', cv2.IMREAD_UNCHANGED)
+        
+        if self.present_img is None or self.coal_img is None:
+            print("ERROR: Could not load game asset images (present.png or coal.png). Using placeholders.")
+            self.present_img = np.zeros((obj_size, obj_size, 4), dtype=np.uint8)
+            self.coal_img = np.zeros((obj_size, obj_size, 4), dtype=np.uint8)
+
+        # 로드된 이미지를 게임 객체 크기에 맞게 미리 리사이즈
+        self.present_img = cv2.resize(self.present_img, (obj_size, obj_size))
+        self.coal_img = cv2.resize(self.coal_img, (obj_size, obj_size))
+
 
     def check_collection(self, is_mouth_open, mouth_x, mouth_y):
         """입 벌림 상태와 입의 위치를 기준으로 객체와의 충돌을 확인하고 점수를 업데이트합니다."""
@@ -63,8 +59,6 @@ class ChristmasGame:
                 distance_y = abs(mouth_y - obj.y)
                 distance_x = abs(mouth_x - obj.x)
                 
-                # 플레이어 캐릭터(main.py의 파란색 사각형)의 Y축 위치를 고려하여 충돌 조건 설정
-                # 여기서는 입의 Y 좌표를 사용하여 입으로 '받아먹는' 형태로 충돌을 감지합니다.
                 if distance_y < obj.size and distance_x < obj.size: 
                     self.score += 10
                     obj.active = False
@@ -98,21 +92,35 @@ class ChristmasGame:
         
     def draw(self, frame):
         """모든 게임 객체와 점수를 프레임에 그립니다."""
+        # 📌 C29: draw 함수가 이미지 오버레이 로직을 실행하도록 수정 (문제 1, 3 해결)
         for obj in self.objects:
-            obj.draw(frame)
+            img = self.present_img if obj.type == 'present' else self.coal_img
+            
+            x, y = int(obj.x - obj.size / 2), int(obj.y - obj.size / 2)
+            w, h = obj.size, obj.size
+            
+            # ROI 설정 (이미지 경계를 벗어나지 않도록 보호)
+            x_end = min(x + w, self.width)
+            y_end = min(y + h, self.height)
+            
+            # 유효한 영역만 처리
+            if x >= 0 and y >= 0 and x < self.width and y < self.height:
+                roi = frame[y:y_end, x:x_end]
+                
+                # 이미지 크기가 ROI 크기와 일치하도록 자르기
+                img_to_overlay = img[0:y_end-y, 0:x_end-x]
+                
+                # 4채널 (Alpha) 이미지를 배경에 오버레이
+                if img_to_overlay.shape[2] == 4:
+                    alpha = img_to_overlay[:, :, 3] / 255.0
+                    inv_alpha = 1.0 - alpha
 
+                    # 채널별로 이미지 오버레이 (알파 블렌딩)
+                    for c in range(0, 3):
+                        roi[:, :, c] = (roi[:, :, c] * inv_alpha) + (img_to_overlay[:, :, c] * alpha)
+                else:
+                    # 3채널 이미지일 경우 (오류 발생 시 대비)
+                    roi[:] = img_to_overlay
+            
         cv2.putText(frame, f"SCORE: {self.score}", (self.width - 150, 60), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-        
-        self.present_img = cv2.imread('assets/present.png', cv2.IMREAD_UNCHANGED)
-        self.coal_img = cv2.imread('assets/coal.png', cv2.IMREAD_UNCHANGED)
-        
-        if self.present_img is None or self.coal_img is None:
-            print("ERROR: Could not load game asset images (present.png or coal.png).")
-            # 이미지가 로드되지 않으면 기본 크기로 빈 이미지 생성 (오류 방지)
-            self.present_img = np.zeros((50, 50, 4), dtype=np.uint8)
-            self.coal_img = np.zeros((50, 50, 4), dtype=np.uint8)
-
-        # 로드된 이미지를 게임 객체 크기에 맞게 미리 리사이즈
-        self.present_img = cv2.resize(self.present_img, (self.objects[0].size, self.objects[0].size)) 
-        self.coal_img = cv2.resize(self.coal_img, (self.objects[0].size, self.objects[0].size))
