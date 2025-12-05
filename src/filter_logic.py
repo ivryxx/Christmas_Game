@@ -34,16 +34,40 @@ def process_frame(frame, face_mesh_instance):
     return frame, results
 
 # -----------------
-# 랜드마크 분석 및 필터 렌더링 함수 뼈대 (추후 구현)
-# -----------------
+# 랜드마크 분석 및 필터 렌더링 함수 
 
-def calculate_mouth_dist(landmarks):
-    """입 벌림 거리 계산 함수 (C9~C11에서 구현 예정)"""
-    # 예시: 랜드마크가 없을 경우 0 반환
+def calculate_mouth_dist(landmarks, frame_width, frame_height): 
+    """
+    입 벌림의 수직 거리(픽셀 단위)를 계산합니다.
+    
+    :param landmarks: MediaPipe의 얼굴 랜드마크 결과
+    :param frame_width, frame_height: 현재 프레임의 크기
+    :return: 입을 벌린 수직 거리 (픽셀)
+    """
     if not landmarks:
         return 0
-    # TODO: 랜드마크 10번과 152번 거리 계산 로직 구현
-    return 0 
+
+    # 랜드마크 좌표 추출 (정규화된 [0.0, 1.0] 값을 픽셀 값으로 변환)
+    upper_point = landmarks.landmark[fl.MOUTH_UPPER] # fl.을 제거하거나 인덱스를 직접 사용해야 합니다.
+    lower_point = landmarks.landmark[fl.MOUTH_LOWER] # (filter_logic 내부이므로 fl. 없이 MOUTH_UPPER 사용)
+    
+    # 수정: filter_logic 내부이므로 MOUTH_UPPER 등을 직접 사용해야 합니다.
+    # C9에서 정의한 인덱스를 사용
+    from . import MOUTH_UPPER, MOUTH_LOWER # MOUTH_UPPER와 MOUTH_LOWER를 가져와야 합니다.
+    upper_point = landmarks.landmark[MOUTH_UPPER]
+    lower_point = landmarks.landmark[MOUTH_LOWER]
+    
+    # 픽셀 좌표
+    x1, y1 = int(upper_point.x * frame_width), int(upper_point.y * frame_height)
+    x2, y2 = int(lower_point.x * frame_width), int(lower_point.y * frame_height)
+
+    # 유클리디안 거리 계산 (numpy 사용)
+    distance = np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
+    
+    return distance
+
+
+
 
 def draw_filter(frame, landmarks):
     """필터(모자, 루돌프 코 등)를 그리는 함수 (C36~C40에서 구현 예정)"""
