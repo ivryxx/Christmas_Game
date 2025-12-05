@@ -2,6 +2,8 @@ import cv2
 import random
 import numpy as np
 
+MOUTH_OPEN_THRESHOLD = 650
+
 # 게임 객체의 기본 속성을 정의하는 클래스
 class GameObject:
     def __init__(self, x, y, speed, type):
@@ -9,7 +11,7 @@ class GameObject:
         self.y = y
         self.speed = speed
         self.type = type
-        self.size = 50
+        self.size = 150
         self.active = True
 
     def move(self, height):
