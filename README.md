@@ -14,11 +14,8 @@
 [▶ Click to watch the demo video] (https://youtu.be/P8N1cDmkpI4)
 <img width="600" height="340" alt="스크린샷 2025-12-07 오후 9 44 53" src="https://github.com/user-attachments/assets/d4146f8f-f76c-4035-b64e-50f54ab1eca5" />
 <img width="600" height="340" alt="스크린샷 2025-12-07 오후 9 44 11" src= "https://github.com/user-attachments/assets/34e87a07-e64a-4dd7-b598-6c414188ffa2" />
-
 <img width="600" height="340" alt="스크린샷 2025-12-07 오후 9 44 11" src ="https://github.com/user-attachments/assets/8cae568d-d01e-4de7-9708-ca9a484ba6c4"/>
-
 <img width="600" height="340" alt="스크린샷 2025-12-07 오후 9 44 11" src="https://github.com/user-attachments/assets/6f540ed5-1721-4827-b642-81b294f2711c" />
-
 <img width="600" height="340" alt="스크린샷 2025-12-07 오후 9 44 11" src="https://github.com/user-attachments/assets/3e01956a-118b-40cb-8190-1c2945fc8523" />
 
 ## 📂 목차
