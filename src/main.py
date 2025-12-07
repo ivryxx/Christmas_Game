@@ -18,9 +18,9 @@ GESTURE_COLORS = {
     'FIST': (255, 180, 120)
 }
 GESTURE_INSTRUCTIONS = {
-    'PALM': '손을 활짝 펴서 보여주세요!',
-    'PEACE': '브이(V) 포즈를 만들어 주세요!',
-    'FIST': '주먹을 꼭 쥐어 보여 주세요!'
+    'PALM': 'Open your hand wide!',
+    'PEACE': 'Make a V/peace sign!',
+    'FIST': 'Hold up a closed fist!'
 }
 
 def main():
@@ -242,35 +242,36 @@ def main():
     def draw_gesture_prompt(frame, target, detected, ready, success_timer):
         if target is None:
             return
-        box_x1, box_y1 = 15, 90
-        box_x2, box_y2 = 220, 230
+        box_x1, box_y1 = 20, 80
+        box_x2, box_y2 = 280, 270
         overlay = frame.copy()
         cv2.rectangle(overlay, (box_x1, box_y1), (box_x2, box_y2), (20, 30, 70), -1)
         cv2.addWeighted(overlay, 0.65, frame, 0.35, 0, frame)
         cv2.rectangle(frame, (box_x1, box_y1), (box_x2, box_y2), (255, 255, 255), 2, cv2.LINE_AA)
 
         highlight = success_timer > 0 or (ready and detected == target)
-        draw_hand_icon(frame, (box_x1 + 10, box_y1 + 10), target, highlight)
+        draw_hand_icon(frame, (box_x1 + 12, box_y1 + 20), target, highlight)
 
-        cv2.putText(frame, "BONUS GESTURE", (box_x1 + 90, box_y1 + 35),
-                    cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 210, 180), 1, cv2.LINE_AA)
+        cv2.putText(frame, "BONUS GESTURE", (box_x1 + 110, box_y1 + 45),
+                    cv2.FONT_HERSHEY_DUPLEX, 0.62, (255, 210, 180), 1, cv2.LINE_AA)
         instruction = GESTURE_INSTRUCTIONS.get(target, target)
-        cv2.putText(frame, target, (box_x1 + 90, box_y1 + 60),
+        cv2.putText(frame, target, (box_x1 + 110, box_y1 + 78),
                     cv2.FONT_HERSHEY_DUPLEX, 0.85, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(frame, instruction, (box_x1 + 15, box_y1 + 95),
+        cv2.putText(frame, instruction, (box_x1 + 20, box_y1 + 125),
                     cv2.FONT_HERSHEY_DUPLEX, 0.55, (210, 220, 255), 1, cv2.LINE_AA)
 
+        status_y = box_y1 + 180
         if success_timer > 0:
-            cv2.putText(frame, f"BONUS +{GESTURE_BONUS_POINTS}", (box_x1 + 30, box_y1 + 150),
-                        cv2.FONT_HERSHEY_DUPLEX, 0.75, (255, 120, 220), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"BONUS +{GESTURE_BONUS_POINTS}", (box_x1 + 30, status_y),
+                        cv2.FONT_HERSHEY_DUPLEX, 0.78, (255, 120, 220), 2, cv2.LINE_AA)
         elif ready and detected == target:
-            cv2.putText(frame, "MATCH! Hold steady", (box_x1 + 20, box_y1 + 150),
+            cv2.putText(frame, "MATCH! Hold steady", (box_x1 + 20, status_y),
                         cv2.FONT_HERSHEY_DUPLEX, 0.6, (0, 220, 180), 2, cv2.LINE_AA)
         elif ready:
-            cv2.putText(frame, "Show this hand pose", (box_x1 + 15, box_y1 + 150),
-                        cv2.FONT_HERSHEY_DUPLEX, 0.58, (200, 220, 255), 1, cv2.LINE_AA)
+            cv2.putText(frame, "Show this hand pose", (box_x1 + 15, status_y),
+                        cv2.FONT_HERSHEY_DUPLEX, 0.6, (200, 220, 255), 1, cv2.LINE_AA)
         else:
-            cv2.putText(frame, "New pose incoming...", (box_x1 + 10, box_y1 + 150),
+            cv2.putText(frame, "New pose incoming...", (box_x1 + 12, status_y),
                         cv2.FONT_HERSHEY_DUPLEX, 0.58, (200, 200, 200), 1, cv2.LINE_AA)
 
 
@@ -348,6 +349,7 @@ def main():
             overlay_intensity = compute_overlay_intensity(hand_data)
         else:
             overlay_color = (160, 160, 200)
+            overlay_intensity = 0.0
         game.set_gesture_overlay(overlay_intensity, overlay_color)
 
         if not menu_active:
@@ -368,12 +370,12 @@ def main():
             # 입 벌림 상태 시각화
             status_text = "COLLECTING!" if is_mouth_open else "WAITING"
             color = (40, 40, 255) if is_mouth_open else (0, 200, 0)
-            cv2.putText(visualized_frame, status_text, (frame_width - 280, 50), 
+            cv2.putText(visualized_frame, status_text, (20, 45), 
                         cv2.FONT_HERSHEY_DUPLEX, 0.9, color, 2, cv2.LINE_AA)
             
             dist_text = f"Mouth Ratio: {mouth_ratio:.3f}"
-            cv2.putText(visualized_frame, dist_text, (10, 40), 
-                        cv2.FONT_HERSHEY_DUPLEX, 0.85, (0, 210, 0), 2, cv2.LINE_AA)
+            cv2.putText(visualized_frame, dist_text, (20, 80), 
+                        cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 210, 0), 2, cv2.LINE_AA)
 
             draw_gesture_prompt(visualized_frame, gesture_target, detected_gesture, gesture_ready, gesture_success_timer)
 

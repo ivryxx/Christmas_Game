@@ -497,7 +497,7 @@ class ChristmasGame:
 
     def _draw_hearts(self, frame):
         start_x = 30
-        heart_spacing = 45
+        heart_spacing = 60
         for idx in range(self.max_lives):
             filled = idx < self.lives
             x = start_x + idx * heart_spacing
