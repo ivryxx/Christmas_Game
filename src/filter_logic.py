@@ -5,14 +5,22 @@ import numpy as np
 # MediaPipe 객체 초기화
 mp_drawing = mp.solutions.drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
+mp_hands = mp.solutions.hands
 
-# 입 벌림 거리 측정을 위한 랜드마크 인덱스 정의
-MOUTH_UPPER = 10 
-MOUTH_LOWER = 152 
+# 입 벌림 거리 측정을 위한 랜드마크 인덱스 정의 (입술 중앙)
+MOUTH_UPPER = 13  # upper lip center
+MOUTH_LOWER = 14  # lower lip center
 
 # C39: 정규화를 위한 눈 랜드마크
 LEFT_EYE_INNER = 263 
 RIGHT_EYE_INNER = 33 
+
+# 손 제스처 판별을 위한 랜드마크 (관절 비교용)
+HAND_FINGER_TIPS = [8, 12, 16, 20]
+HAND_FINGER_PIPS = [6, 10, 14, 18]
+
+# 손가락 이름 참고용
+FINGER_NAMES = ['INDEX', 'MIDDLE', 'RING', 'PINKY']
 
 # 머리 자세 추정(Head Pose Estimation)을 위한 랜드마크 인덱스 정의
 HEAD_POSE_LANDMARKS = [
@@ -42,6 +50,14 @@ def initialize_filter_system():
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5)
     return face_mesh, mp_drawing
+
+def initialize_hand_tracker():
+    """MediaPipe Hands 객체를 초기화하고 반환합니다."""
+    hand_tracker = mp_hands.Hands(
+        max_num_hands=1,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5)
+    return hand_tracker
 
 def process_frame(frame, face_mesh):
     """MediaPipe Face Mesh를 사용하여 프레임을 처리합니다."""
@@ -143,3 +159,48 @@ def draw_head_pose_axis(frame, rvec, image_points, camera_matrix, dist_coeffs):
     frame = cv2.line(frame, nose_tip, tuple(imgpts[2].ravel().astype(int)), (255, 0, 0), 3) # Z (파랑)
     
     return frame
+
+def detect_hand_gesture(frame, hand_tracker):
+    """손 랜드마크를 분석해 단순 제스처를 판별하고 좌표 데이터를 반환합니다."""
+    data = {
+        'gesture': None,
+        'landmarks': [],
+        'hand_count': 0
+    }
+
+    if hand_tracker is None or frame is None:
+        return data
+
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hand_tracker.process(rgb)
+    if not results.multi_hand_landmarks:
+        return data
+
+    # 저장용 좌표 리스트 생성 (x, y, z 튜플)
+    hand_points = []
+    for hand_lm in results.multi_hand_landmarks:
+        coords = [(lm.x, lm.y, lm.z) for lm in hand_lm.landmark]
+        hand_points.append(coords)
+
+    data['landmarks'] = hand_points
+    data['hand_count'] = len(hand_points)
+
+    # 첫 번째 손으로 제스처 판정
+    primary = results.multi_hand_landmarks[0]
+
+    finger_states = []
+    for tip_idx, pip_idx in zip(HAND_FINGER_TIPS, HAND_FINGER_PIPS):
+        tip = primary.landmark[tip_idx]
+        pip = primary.landmark[pip_idx]
+        finger_states.append(tip.y < pip.y - 0.015)
+
+    if all(finger_states):
+        data['gesture'] = 'PALM'
+    elif finger_states[0] and finger_states[1] and not finger_states[2] and not finger_states[3]:
+        data['gesture'] = 'PEACE'
+    elif not any(finger_states):
+        data['gesture'] = 'FIST'
+    elif finger_states[0] and finger_states[3] and not finger_states[1] and not finger_states[2]:
+        data['gesture'] = 'ROCK'
+
+    return data
