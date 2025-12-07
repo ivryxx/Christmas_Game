@@ -370,11 +370,11 @@ def main():
             # 입 벌림 상태 시각화
             status_text = "COLLECTING!" if is_mouth_open else "WAITING"
             color = (40, 40, 255) if is_mouth_open else (0, 200, 0)
-            cv2.putText(visualized_frame, status_text, (20, 45), 
+            cv2.putText(visualized_frame, status_text, (20, 120), 
                         cv2.FONT_HERSHEY_DUPLEX, 0.9, color, 2, cv2.LINE_AA)
             
             dist_text = f"Mouth Ratio: {mouth_ratio:.3f}"
-            cv2.putText(visualized_frame, dist_text, (20, 80), 
+            cv2.putText(visualized_frame, dist_text, (20, 155), 
                         cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 210, 0), 2, cv2.LINE_AA)
 
             draw_gesture_prompt(visualized_frame, gesture_target, detected_gesture, gesture_ready, gesture_success_timer)
